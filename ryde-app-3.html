@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ryde</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --accent:#C8FF00;--dark:#0a0a0a;--bg:#fff;--bg2:#f4f4f4;--bg3:#e8e8e8;
+  --border:rgba(0,0,0,0.09);--text:#111;--text2:#666;--text3:#aaa;
+  --success-bg:#e6faf2;--success:#0a7a50;--info-bg:#e8f2fd;--info:#1560a8;
+  --danger:#c0392b;--danger-border:rgba(192,57,43,0.25);
+  --r:10px;--rl:16px;--rxl:22px;--blue:#2563eb;
+}
+html{height:100%;-webkit-text-size-adjust:100%;}
+body{height:100%;background:#141414;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
+.phone{width:100%;max-width:430px;height:100vh;max-height:900px;background:var(--bg);border-radius:var(--rxl);overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+#map{width:100%;height:44%;flex-shrink:0;position:relative;z-index:1;}
+.leaflet-control-attribution{display:none!important;}
+.leaflet-control-zoom{border:none!important;box-shadow:0 2px 10px rgba(0,0,0,0.2)!important;margin-right:12px!important;margin-bottom:56px!important;}
+.leaflet-control-zoom a{border:none!important;color:#333!important;background:#fff!important;border-radius:8px!important;margin-bottom:2px!important;width:32px!important;height:32px!important;line-height:32px!important;}
+.map-hdr{position:absolute;top:0;left:0;right:0;z-index:800;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(to bottom,rgba(0,0,0,0.65),transparent);pointer-events:none;}
+.map-hdr *{pointer-events:auto;}
+.logo{font-size:26px;font-weight:800;color:#fff;letter-spacing:-1.5px;}
+.logo b{color:var(--accent);}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#111;}
+.route-badge{position:absolute;bottom:14px;left:14px;z-index:800;background:rgba(0,0,0,0.78);border-radius:10px;padding:8px 13px;display:none;flex-direction:column;gap:2px;}
+.route-badge.show{display:flex;}
+.rb-main{font-size:15px;font-weight:700;color:#fff;}
+.rb-sub{font-size:11px;color:rgba(255,255,255,0.6);}
+.locate-btn{position:absolute;bottom:14px;right:14px;z-index:800;width:40px;height:40px;border-radius:50%;background:#fff;border:none;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.2);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.user-dot{width:14px;height:14px;background:var(--accent);border:3px solid #fff;border-radius:50%;animation:ripple 2s ease-out infinite;}
+@keyframes ripple{0%{box-shadow:0 0 0 0 rgba(200,255,0,0.5);}70%{box-shadow:0 0 0 10px rgba(200,255,0,0);}100%{box-shadow:0 0 0 0 rgba(200,255,0,0);}}
+.dest-dot{width:14px;height:14px;background:var(--blue);border:3px solid #fff;border-radius:50%;}
+.sheet{flex:1;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;border-radius:var(--rxl) var(--rxl) 0 0;margin-top:-20px;position:relative;z-index:10;box-shadow:0 -4px 20px rgba(0,0,0,0.08);}
+.handle{display:flex;justify-content:center;padding:10px 0 0;}
+.hbar{width:38px;height:4px;border-radius:2px;background:var(--bg3);}
+.screen{display:none;flex-direction:column;flex:1;overflow:hidden;}
+.screen.active{display:flex;}
+.where-bar{margin:14px 16px 10px;background:var(--dark);border-radius:var(--rl);padding:15px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.where-bar span{font-size:15px;color:rgba(255,255,255,0.45);flex:1;}
+.now-pill{background:var(--accent);border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;color:#111;white-space:nowrap;}
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 16px 14px;}
+.cat{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px;background:var(--bg2);border-radius:var(--r);cursor:pointer;border:0.5px solid var(--border);-webkit-tap-highlight-color:transparent;}
+.cat span{font-size:11px;color:var(--text2);}
+.slbl{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;padding:0 16px;margin-bottom:6px;}
+.place-row{display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.pi{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pi-h{background:var(--success-bg);}
+.pi-w{background:var(--info-bg);}
+.pi-r{background:var(--bg2);border:0.5px solid var(--border);}
+.pn{font-size:14px;font-weight:500;color:var(--text);}
+.pa{font-size:12px;color:var(--text2);margin-top:1px;}
+.pe{margin-left:auto;font-size:12px;color:var(--text3);}
+.search-hdr{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:10px;}
+.back-btn{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px;-webkit-tap-highlight-color:transparent;}
+.search-fields{flex:1;display:flex;flex-direction:column;gap:6px;}
+.sfield-wrap{display:flex;align-items:center;gap:10px;background:var(--bg2);border-radius:var(--r);border:0.5px solid var(--border);padding:10px 12px;transition:border-color 0.15s;}
+.sfield-wrap.focused{border-color:var(--accent);}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.sdot.d{background:var(--blue);border-radius:2px;}
+.sfield{flex:1;background:transparent;border:none;outline:none;font-size:14px;color:var(--text);font-family:inherit;min-width:0;}
+.sfield::placeholder{color:var(--text3);}
+.sclear{width:18px;height:18px;border-radius:50%;background:var(--text3);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+.sresults{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 16px 0;}
+.sitem{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.sitem:last-child{border-bottom:none;}
+.sicon{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sname{font-size:14px;font-weight:500;color:var(--text);}
+.saddr{font-size:12px;color:var(--text2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;}
+.sempty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:8px;padding:40px 20px;text-align:center;}
+.sempty p{font-size:14px;color:var(--text2);}
+.sempty small{font-size:12px;color:var(--text3);}
+.ssearching{display:flex;align-items:center;gap:10px;padding:20px 16px;color:var(--text2);font-size:13px;}
+.sspin{width:16px;height:16px;border-radius:50%;border:2px solid var(--bg3);border-top-color:var(--accent);animation:spin 0.6s linear infinite;flex-shrink:0;}
+.bk-head{padding:14px 16px 0;display:flex;align-items:center;gap:12px;}
+.stitle{font-size:16px;font-weight:600;color:var(--text);}
+.route-box{padding:10px 16px;display:flex;gap:10px;align-items:stretch;}
+.rl{display:flex;flex-direction:column;align-items:center;padding:6px 0;}
+.rd-g{width:8px;height:8px;border-radius:50%;background:var(--text2);}
+.rd-a{width:8px;height:8px;border-radius:2px;background:var(--blue);}
+.rv{width:1.5px;flex:1;background:var(--border);margin:3px 0;}
+.ri-wrap{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;}
+.ri{background:var(--bg2);border-radius:var(--r);padding:9px 12px;border:0.5px solid var(--border);cursor:pointer;}
+.ri-l{font-size:10px;color:var(--text3);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.04em;}
+.ri-v{font-size:13px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stats-row{margin:0 16px 10px;display:flex;gap:8px;}
+.stat{flex:1;background:var(--bg2);border-radius:var(--r);padding:9px 12px;border:0.5px solid var(--border);text-align:center;}
+.stat-v{font-size:17px;font-weight:700;color:var(--text);}
+.stat-l{font-size:10px;color:var(--text3);margin-top:1px;text-transform:uppercase;letter-spacing:0.04em;}
+.fare-strip{margin:0 16px 10px;background:var(--bg2);border-radius:var(--r);padding:10px 14px;border:0.5px solid var(--border);}
+.fs-t{font-size:11px;color:var(--text3);margin-bottom:8px;}
+.fs-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.fs-row:last-child{margin-bottom:0;}
+.fs-b{font-size:12px;color:var(--text2);}
+.fs-p{font-size:13px;font-weight:600;color:var(--text);}
+.fs-p.g{color:var(--success);}
+.fs-save{font-size:11px;color:var(--success);background:var(--success-bg);padding:2px 7px;border-radius:4px;}
+.ride-list{padding:0 16px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.ride-opt{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--rl);border:0.5px solid var(--border);margin-bottom:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.ride-opt.sel{border:2px solid var(--accent);background:rgba(200,255,0,0.04);}
+.ro-i{flex:1;min-width:0;}
+.ro-t{display:flex;justify-content:space-between;align-items:center;}
+.ro-n{font-size:14px;font-weight:600;color:var(--text);}
+.ro-p{font-size:15px;font-weight:700;color:var(--text);}
+.ro-s{display:flex;justify-content:space-between;margin-top:3px;}
+.ro-s span{font-size:12px;color:var(--text2);}
+.eco-b{font-size:10px;background:var(--success-bg);color:var(--success);padding:2px 7px;border-radius:4px;font-weight:600;}
+.pay-row{display:flex;align-items:center;gap:10px;padding:0 16px;margin-bottom:10px;}
+.pay-row span{font-size:13px;color:var(--text2);}
+.chg{font-size:13px;color:var(--info);margin-left:auto;cursor:pointer;}
+.book-btn{margin:0 16px 14px;width:calc(100% - 32px);padding:16px;background:var(--dark);color:var(--accent);border:none;border-radius:var(--rl);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+.cfm-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;}
+.spinner{width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);border-top-color:var(--accent);animation:spin 0.75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.trk-top{padding:16px 16px 0;display:flex;align-items:flex-start;gap:10px;}
+.trk-eta{font-size:30px;font-weight:700;color:var(--text);line-height:1;}
+.trk-sub{font-size:13px;color:var(--text2);margin-top:3px;}
+.prog-wrap{padding:12px 16px 0;}
+.prog-track{height:5px;background:var(--bg2);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width 2.5s ease;}
+.drv-card{margin:12px 16px 0;background:var(--bg2);border-radius:var(--rl);padding:14px;display:flex;align-items:center;gap:12px;border:0.5px solid var(--border);}
+.drv-av{width:50px;height:50px;border-radius:50%;background:#e8e8e8;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.drv-nm{font-size:15px;font-weight:600;color:var(--text);}
+.drv-cr{font-size:12px;color:var(--text2);margin-top:2px;}
+.drv-btns{display:flex;gap:8px;margin-left:auto;}
+.icon-btn{width:40px;height:40px;border-radius:50%;background:var(--bg);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.trip-acts{padding:10px 16px 0;display:flex;gap:8px;}
+.trip-act{flex:1;padding:11px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;-webkit-tap-highlight-color:transparent;}
+.cancel-btn{margin:auto 16px 14px;width:calc(100% - 32px);padding:13px;background:transparent;color:var(--danger);border:0.5px solid var(--danger-border);border-radius:var(--rl);font-size:14px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+.bnav{display:flex;border-top:0.5px solid var(--border);background:var(--bg);padding:10px 0 16px;flex-shrink:0;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.nav-btn span{font-size:10px;}
+.calc-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:flex-end;}
+.calc-overlay.open{display:flex;}
+.calc-sheet{width:100%;background:var(--bg);border-radius:var(--rxl) var(--rxl) 0 0;padding-bottom:24px;}
+.calc-hd{display:flex;justify-content:center;padding:10px 0 0;}
+.calc-title{font-size:17px;font-weight:700;color:var(--text);padding:2px 20px 14px;border-bottom:0.5px solid var(--border);}
+.calc-body{padding:16px 20px 0;}
+.calc-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.calc-lbl{font-size:13px;color:var(--text2);width:70px;flex-shrink:0;}
+.calc-input{flex:1;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:11px 12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none;}
+.calc-input:focus{border-color:var(--accent);}
+.cr-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:var(--r);margin-bottom:7px;border:0.5px solid var(--border);background:var(--bg2);}
+.cr-row.ryde{background:rgba(200,255,0,0.05);border-color:rgba(200,255,0,0.5);}
+.cr-brand{font-size:13px;font-weight:600;color:var(--text);}
+.cr-right{display:flex;align-items:center;gap:8px;}
+.cr-price{font-size:16px;font-weight:700;color:var(--text);}
+.cr-price.win{color:var(--success);}
+.cr-badge{font-size:11px;color:var(--success);background:var(--success-bg);padding:2px 8px;border-radius:4px;font-weight:600;}
+.calc-note{font-size:11px;color:var(--text3);text-align:center;margin-top:8px;}
+.calc-close{width:calc(100% - 40px);margin:14px 20px 0;padding:14px;background:var(--dark);color:var(--accent);border:none;border-radius:var(--rl);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div id="map">
+    <div class="map-hdr">
+      <div class="logo">Ry<b>d</b>e</div>
+      <div class="avatar">JH</div>
+    </div>
+    <div class="route-badge" id="rbadge">
+      <div class="rb-main" id="rbadge-dist"></div>
+      <div class="rb-sub" id="rbadge-time"></div>
+    </div>
+    <button class="locate-btn" id="locate-btn" aria-label="My location">
+      <svg width="18" height="18" fill="none" stroke="#333" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg>
+    </button>
+  </div>
+
+  <div class="sheet">
+    <div class="handle"><div class="hbar"></div></div>
+
+    <!-- HOME -->
+    <div id="scr-home" class="screen active">
+      <div class="where-bar" id="where-bar">
+        <svg width="16" height="16" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <span>Where to?</span>
+        <div class="now-pill">Now</div>
+      </div>
+      <div class="cat-grid">
+        <div class="cat" id="cat-ride"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="10" rx="3"/><path d="M5 8V6a2 2 0 012-2h10a2 2 0 012 2v2"/><circle cx="7.5" cy="18" r="1.5"/><circle cx="16.5" cy="18" r="1.5"/></svg><span>Ride</span></div>
+        <div class="cat" id="cat-compare"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span>Compare</span></div>
+        <div class="cat"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>Schedule</span></div>
+        <div class="cat"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Share</span></div>
+      </div>
+      <div class="slbl">Saved places</div>
+      <div class="place-row" id="pr-home">
+        <div class="pi pi-h"><svg width="16" height="16" fill="none" stroke="#0a7a50" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        <div><div class="pn">Home</div><div class="pa">14 Baker Street, London</div></div>
+        <div class="pe">tap to route</div>
+      </div>
+      <div class="place-row" id="pr-work">
+        <div class="pi pi-w"><svg width="16" height="16" fill="none" stroke="#1560a8" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></div>
+        <div><div class="pn">Work</div><div class="pa">30 Canary Wharf, London</div></div>
+        <div class="pe">tap to route</div>
+      </div>
+      <div class="slbl" style="margin-top:8px;">Recent</div>
+      <div class="place-row" id="pr-wembley">
+        <div class="pi pi-r"><svg width="16" height="16" fill="none" stroke="#aaa" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div><div class="pn">Wembley Stadium</div><div class="pa">Wembley, London HA9</div></div>
+        <div class="pe">tap to route</div>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div id="scr-search" class="screen">
+      <div class="search-hdr">
+        <button class="back-btn" id="search-back"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg></button>
+        <div class="search-fields">
+          <div class="sfield-wrap">
+            <div class="sdot"></div>
+            <input class="sfield" id="pickup-input" placeholder="Getting your location…" type="text" autocomplete="off" readonly>
+          </div>
+          <div class="sfield-wrap" id="dest-wrap">
+            <div class="sdot d"></div>
+            <input class="sfield" id="dest-input" placeholder="Where to?" type="text" autocomplete="off">
+            <button class="sclear" id="dest-clear" style="display:none;"><svg width="8" height="8" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="sresults" id="sresults">
+        <div class="sempty"><svg width="40" height="40" fill="none" stroke="#ccc" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>Search for a destination</p><small>Type an address, place or landmark</small></div>
+      </div>
+    </div>
+
+    <!-- BOOKING -->
+    <div id="scr-booking" class="screen">
+      <div class="bk-head">
+        <button class="back-btn" id="back-btn"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg></button>
+        <span class="stitle">Choose a ride</span>
+      </div>
+      <div class="route-box">
+        <div class="rl"><div class="rd-g"></div><div class="rv"></div><div class="rd-a"></div></div>
+        <div class="ri-wrap">
+          <div class="ri"><div class="ri-l">Pickup</div><div class="ri-v" id="pickup-disp">Your location</div></div>
+          <div class="ri" id="ri-dest"><div class="ri-l">Drop-off</div><div class="ri-v" id="dest-disp">—</div></div>
+        </div>
+      </div>
+      <div class="stats-row" id="stats-row" style="display:none;">
+        <div class="stat"><div class="stat-v" id="sv-mi">—</div><div class="stat-l">Miles</div></div>
+        <div class="stat"><div class="stat-v" id="sv-km">—</div><div class="stat-l">Kilometres</div></div>
+        <div class="stat"><div class="stat-v" id="sv-t">—</div><div class="stat-l">Est. time</div></div>
+      </div>
+      <div class="fare-strip">
+        <div class="fs-t" id="fs-title">Price comparison</div>
+        <div class="fs-row"><span class="fs-b">Uber X</span><span class="fs-p" id="f-uber">—</span></div>
+        <div class="fs-row"><span class="fs-b">Bolt</span><span class="fs-p" id="f-bolt">—</span></div>
+        <div class="fs-row"><span class="fs-b" style="font-weight:700;color:#111;">Ryde ✓</span><div style="display:flex;align-items:center;gap:6px;"><span class="fs-p g" id="f-ryde">—</span><span class="fs-save" id="f-save" style="display:none;"></span></div></div>
+      </div>
+      <div class="ride-list">
+        <div class="ride-opt sel" id="ro-std"><svg width="34" height="20" viewBox="0 0 40 20" fill="none"><rect x="2" y="6" width="32" height="10" rx="3" fill="#C8FF00"/><rect x="7" y="2" width="22" height="8" rx="2" fill="#C8FF00" opacity="0.7"/><circle cx="9" cy="16" r="3" fill="#111"/><circle cx="27" cy="16" r="3" fill="#111"/></svg><div class="ro-i"><div class="ro-t"><span class="ro-n">Ryde</span><span class="ro-p" id="p-std">—</span></div><div class="ro-s"><span>2 min · 1–4 seats</span><span id="t-std">—</span></div></div></div>
+        <div class="ride-opt" id="ro-xl"><svg width="34" height="20" viewBox="0 0 48 20" fill="none"><rect x="2" y="6" width="40" height="10" rx="3" fill="#60a5fa"/><rect x="7" y="2" width="30" height="8" rx="2" fill="#60a5fa" opacity="0.7"/><circle cx="10" cy="16" r="3" fill="#111"/><circle cx="22" cy="16" r="3" fill="#111"/><circle cx="34" cy="16" r="3" fill="#111"/></svg><div class="ro-i"><div class="ro-t"><span class="ro-n">Ryde XL</span><span class="ro-p" id="p-xl">—</span></div><div class="ro-s"><span>5 min · up to 6 seats</span><span id="t-xl">—</span></div></div></div>
+        <div class="ride-opt" id="ro-eco"><svg width="34" height="20" viewBox="0 0 36 20" fill="none"><rect x="2" y="6" width="28" height="10" rx="3" fill="#34d399"/><rect x="7" y="2" width="18" height="8" rx="2" fill="#34d399" opacity="0.7"/><circle cx="8" cy="16" r="3" fill="#111"/><circle cx="24" cy="16" r="3" fill="#111"/></svg><div class="ro-i"><div class="ro-t"><span class="ro-n">Ryde Eco</span><div style="display:flex;align-items:center;gap:6px;"><span class="eco-b">Electric</span><span class="ro-p" id="p-eco">—</span></div></div><div class="ro-s"><span>4 min · 1–4 seats</span><span id="t-eco">—</span></div></div></div>
+      </div>
+      <div class="pay-row"><svg width="16" height="16" fill="none" stroke="#aaa" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span>Visa ···· 4242</span><span class="chg">Change</span></div>
+      <button class="book-btn" id="book-btn">Book Ryde</button>
+    </div>
+
+    <!-- CONFIRMING -->
+    <div id="scr-confirming" class="screen">
+      <div class="cfm-wrap">
+        <div class="spinner"></div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);">Finding your driver...</div>
+        <div style="font-size:13px;color:var(--text2);">Usually takes less than 30 seconds</div>
+      </div>
+    </div>
+
+    <!-- TRACKING -->
+    <div id="scr-tracking" class="screen">
+      <div class="trk-top">
+        <div style="flex:1;"><div class="trk-eta">2 min</div><div class="trk-sub">Driver arriving</div></div>
+        <div style="text-align:right;">
+          <div style="font-size:14px;font-weight:600;color:var(--text);">Marcus A.</div>
+          <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;margin-top:3px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#C8FF00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span style="font-size:12px;color:var(--text2);">4.92 · Prius · LN64 MKR</span>
+          </div>
+        </div>
+      </div>
+      <div class="prog-wrap"><div class="prog-track"><div class="prog-fill" id="prog"></div></div></div>
+      <div class="drv-card">
+        <div class="drv-av">👨🏾</div>
+        <div><div class="drv-nm">Marcus A.</div><div class="drv-cr">Toyota Prius · Silver · LN64 MKR</div></div>
+        <div class="drv-btns">
+          <div class="icon-btn"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.64A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div>
+          <div class="icon-btn"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+        </div>
+      </div>
+      <div class="trip-acts">
+        <button class="trip-act"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>Share trip</button>
+        <button class="trip-act"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Safety</button>
+      </div>
+      <button class="cancel-btn" id="cancel-btn">Cancel ride</button>
+    </div>
+  </div>
+
+  <div class="bnav">
+    <button class="nav-btn" id="nav-home"><svg width="20" height="20" fill="none" stroke="#111" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span style="color:#111;">Home</span></button>
+    <button class="nav-btn" id="nav-compare"><svg width="20" height="20" fill="none" stroke="#aaa" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span style="color:#aaa;">Compare</span></button>
+    <button class="nav-btn"><svg width="20" height="20" fill="none" stroke="#aaa" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg><span style="color:#aaa;">Account</span></button>
+  </div>
+
+  <div class="calc-overlay" id="calc-overlay">
+    <div class="calc-sheet">
+      <div class="calc-hd"><div class="hbar"></div></div>
+      <div class="calc-title">Fare calculator</div>
+      <div class="calc-body">
+        <div class="calc-row"><label class="calc-lbl" for="c-miles">Miles</label><input class="calc-input" id="c-miles" type="number" min="0.1" step="0.1" value="5" inputmode="decimal"></div>
+        <div class="calc-row"><label class="calc-lbl" for="c-mins">Minutes</label><input class="calc-input" id="c-mins" type="number" min="1" step="1" value="20" inputmode="numeric"></div>
+        <div id="calc-results"></div>
+        <p class="calc-note">Ryde is always 20% cheaper than the lowest competitor</p>
+      </div>
+      <button class="calc-close" id="calc-close">Done</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+'use strict';
+
+var GOOGLE_KEY = 'AIzaSyDkrQahP793iqEsOs96RgouCIwzth0EM1w';
+
+function g(id){return document.getElementById(id);}
+
+var map=null, userMarker=null, destMarker=null, routeLine=null;
+var uLat=51.505, uLng=-0.09;
+var distMi=null, distKm=null, tripMins=null;
+var selRide='std';
+var searchTimer=null;
+var myLocationLabel='Your location';
+
+// ── REVERSE GEOCODE using Google ──
+function reverseGeocode(lat,lng,cb){
+  var url='https://maps.googleapis.com/maps/api/geocode/json?latlng='+lat+','+lng+'&key='+GOOGLE_KEY+'&language=en&result_type=street_address|premise|neighborhood';
+  fetch(url)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.results&&data.results.length){
+        // Use first result, strip country from end
+        var parts=data.results[0].formatted_address.split(',');
+        var label=parts.slice(0,2).join(',').trim();
+        cb(label);
+      } else {
+        cb('Your location');
+      }
+    })
+    .catch(function(){cb('Your location');});
+}
+
+// ── MAP ──
+function buildMap(lat,lng){
+  uLat=lat; uLng=lng;
+  if(map){
+    map.setView([lat,lng],15);
+    if(userMarker) userMarker.setLatLng([lat,lng]);
+  } else {
+    map=L.map('map',{zoomControl:true,attributionControl:false,dragging:true,touchZoom:true,scrollWheelZoom:true,tap:true,tapTolerance:15}).setView([lat,lng],14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+    var dh='<div style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;"><div class="user-dot"></div></div>';
+    userMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:dh,iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:1000}).addTo(map);
+    var cs='<svg width="34" height="20" viewBox="0 0 40 20" fill="none"><rect x="2" y="6" width="32" height="10" rx="3" fill="COL"/><rect x="7" y="2" width="22" height="8" rx="2" fill="COL" opacity="0.75"/><circle cx="9" cy="16" r="3" fill="#111"/><circle cx="27" cy="16" r="3" fill="#111"/></svg>';
+    [{o:0.003,p:0.005,c:'#C8FF00'},{o:-0.004,p:-0.006,c:'#60a5fa'},{o:0.006,p:-0.008,c:'#34d399'},{o:-0.002,p:0.009,c:'#f472b6'}].forEach(function(d){
+      var s=cs.split('COL').join(d.c);
+      L.marker([lat+d.o,lng+d.p],{icon:L.divIcon({className:'',html:s,iconSize:[34,20],iconAnchor:[17,10]})}).addTo(map);
+    });
+  }
+  // Reverse geocode to fill pickup box
+  reverseGeocode(lat,lng,function(label){
+    myLocationLabel=label;
+    g('pickup-input').value=label;
+    g('pickup-disp').textContent=label;
+  });
+}
+
+function locate(){
+  if(!navigator.geolocation){buildMap(uLat,uLng);return;}
+  navigator.geolocation.getCurrentPosition(
+    function(p){buildMap(p.coords.latitude,p.coords.longitude);},
+    function(){buildMap(uLat,uLng);g('pickup-input').value='London (default)';},
+    {timeout:10000,maximumAge:60000,enableHighAccuracy:true}
+  );
+}
+
+window.addEventListener('load',locate);
+g('locate-btn').addEventListener('click',function(e){e.preventDefault();locate();});
+
+// ── ROUTING ──
+function drawRoute(lat2,lng2){
+  if(destMarker) map.removeLayer(destMarker);
+  var ph='<div style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;"><div class="dest-dot"></div></div>';
+  destMarker=L.marker([lat2,lng2],{icon:L.divIcon({className:'',html:ph,iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:999}).addTo(map);
+  var url='https://router.project-osrm.org/route/v1/driving/'+uLng+','+uLat+';'+lng2+','+lat2+'?overview=full&geometries=geojson';
+  fetch(url)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data.routes||!data.routes.length){fallback(lat2,lng2);return;}
+      var route=data.routes[0];
+      distKm=route.distance/1000; distMi=distKm*0.621371; tripMins=Math.ceil(route.duration/60);
+      if(routeLine) map.removeLayer(routeLine);
+      var coords=route.geometry.coordinates.map(function(c){return[c[1],c[0]];});
+      routeLine=L.polyline(coords,{color:'#2563eb',weight:5,opacity:0.88,lineJoin:'round'}).addTo(map);
+      map.fitBounds(L.latLngBounds([[uLat,uLng],[lat2,lng2]]),{padding:[50,50]});
+      updateBadge(); updateFares();
+    })
+    .catch(function(){fallback(lat2,lng2);});
+}
+
+function fallback(lat2,lng2){
+  if(routeLine) map.removeLayer(routeLine);
+  routeLine=L.polyline([[uLat,uLng],[lat2,lng2]],{color:'#2563eb',weight:5,opacity:0.88}).addTo(map);
+  var R=6371,dLt=(lat2-uLat)*Math.PI/180,dLg=(lng2-uLng)*Math.PI/180;
+  var a=Math.sin(dLt/2)*Math.sin(dLt/2)+Math.cos(uLat*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLg/2)*Math.sin(dLg/2);
+  distKm=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); distMi=distKm*0.621371; tripMins=Math.ceil(distKm/0.45);
+  map.fitBounds(L.latLngBounds([[uLat,uLng],[lat2,lng2]]),{padding:[50,50]});
+  updateBadge(); updateFares();
+}
+
+function updateBadge(){
+  g('rbadge-dist').textContent=distMi.toFixed(1)+' mi  ·  '+distKm.toFixed(1)+' km';
+  g('rbadge-time').textContent='~'+tripMins+' min by road';
+  g('rbadge').classList.add('show');
+}
+
+function fmt(v){return '£'+v.toFixed(2);}
+
+function updateFares(){
+  if(!distMi) return;
+  var mi=distMi, mn=tripMins;
+  var uber=2.50+mi*1.375+mn*0.175+2.00;
+  var bolt=2.10+mi*1.225+mn*0.15;
+  var cheap=Math.min(uber,bolt);
+  var ryde=cheap*0.80, save=cheap-ryde;
+  g('f-uber').textContent=fmt(uber); g('f-bolt').textContent=fmt(bolt);
+  g('f-ryde').textContent=fmt(ryde);
+  g('f-save').textContent='Save '+fmt(save); g('f-save').style.display='inline';
+  g('fs-title').textContent='Price comparison · '+mi.toFixed(1)+' mi trip';
+  g('p-std').textContent=fmt(ryde); g('p-xl').textContent=fmt(ryde*1.45); g('p-eco').textContent=fmt(ryde*0.85);
+  g('t-std').textContent=mn+' min'; g('t-xl').textContent=mn+' min'; g('t-eco').textContent=(mn+2)+' min';
+  g('sv-mi').textContent=mi.toFixed(1); g('sv-km').textContent=distKm.toFixed(1); g('sv-t').textContent=mn+' min';
+  g('stats-row').style.display='flex';
+  refreshBookBtn();
+}
+
+function refreshBookBtn(){
+  var prices={std:g('p-std').textContent,xl:g('p-xl').textContent,eco:g('p-eco').textContent};
+  var names={std:'Ryde',xl:'Ryde XL',eco:'Ryde Eco'};
+  var p=prices[selRide];
+  g('book-btn').textContent='Book '+names[selRide]+(p&&p!=='—'?' · '+p:'');
+}
+
+// ── SEARCH using Google Places Autocomplete ──
+function doSearch(q){
+  var el=g('sresults');
+  if(!q||q.length<2){
+    el.innerHTML='<div class="sempty"><svg width="40" height="40" fill="none" stroke="#ccc" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>Search for a destination</p><small>Type an address, place or landmark</small></div>';
+    return;
+  }
+  el.innerHTML='<div class="ssearching"><div class="sspin"></div>Searching...</div>';
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(function(){
+    // Google Places Autocomplete — UK biased
+    var url='https://maps.googleapis.com/maps/api/place/autocomplete/json'
+      +'?input='+encodeURIComponent(q)
+      +'&key='+GOOGLE_KEY
+      +'&language=en'
+      +'&components=country:gb'
+      +'&location='+uLat+','+uLng
+      +'&radius=50000'
+      +'&strictbounds=false';
+    fetch(url)
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if(data.predictions&&data.predictions.length){
+          renderPredictions(data.predictions);
+        } else {
+          el.innerHTML='<div class="sempty"><p>No results found</p><small>Try a different search term</small></div>';
+        }
+      })
+      .catch(function(){
+        el.innerHTML='<div class="sempty"><p>Search failed</p><small>Check your internet connection</small></div>';
+      });
+  },250);
+}
+
+function renderPredictions(predictions){
+  var el=g('sresults');
+  var html='';
+  predictions.forEach(function(p){
+    var main=p.structured_formatting.main_text;
+    var secondary=p.structured_formatting.secondary_text||'';
+    html+='<div class="sitem" data-placeid="'+p.place_id+'" data-name="'+encodeURIComponent(main)+'">'
+      +'<div class="sicon"><svg width="14" height="14" fill="none" stroke="#aaa" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg></div>'
+      +'<div style="overflow:hidden;min-width:0;"><div class="sname">'+main+'</div><div class="saddr">'+secondary+'</div></div>'
+      +'</div>';
+  });
+  el.innerHTML=html;
+  el.querySelectorAll('.sitem').forEach(function(item){
+    item.addEventListener('click',function(){
+      var placeId=item.dataset.placeid;
+      var name=decodeURIComponent(item.dataset.name);
+      // Get lat/lng from place details
+      var detailUrl='https://maps.googleapis.com/maps/api/place/details/json'
+        +'?place_id='+placeId
+        +'&fields=geometry'
+        +'&key='+GOOGLE_KEY;
+      fetch(detailUrl)
+        .then(function(r){return r.json();})
+        .then(function(data){
+          if(data.result&&data.result.geometry){
+            var loc=data.result.geometry.location;
+            selectDest(loc.lat,loc.lng,name);
+          }
+        });
+    });
+  });
+}
+function selectDest(lat,lng,name){
+  g('dest-disp').textContent=name;
+  g('pickup-disp').textContent=myLocationLabel;
+  drawRoute(lat,lng);
+  show('booking');
+}
+
+// ── SCREENS ──
+var cfmTimer=null;
+function show(n){
+  ['home','search','booking','confirming','tracking'].forEach(function(s){var e=g('scr-'+s);if(e)e.classList.remove('active');});
+  var t=g('scr-'+n);if(t)t.classList.add('active');
+  if(n==='confirming'){clearTimeout(cfmTimer);cfmTimer=setTimeout(function(){show('tracking');},2500);}
+  if(n==='tracking'){setTimeout(function(){var p=g('prog');if(p)p.style.width='85%';},400);}
+}
+
+function openSearch(){
+  if(!g('pickup-input').value) g('pickup-input').value=myLocationLabel;
+  g('dest-input').value=''; g('dest-clear').style.display='none';
+  show('search');
+  setTimeout(function(){g('dest-input').focus();},120);
+}
+
+g('where-bar').addEventListener('click',openSearch);
+g('cat-ride').addEventListener('click',openSearch);
+g('search-back').addEventListener('click',function(){show('home');});
+g('back-btn').addEventListener('click',function(){show('home');});
+g('ri-dest').addEventListener('click',openSearch);
+g('book-btn').addEventListener('click',function(){show('confirming');});
+g('cancel-btn').addEventListener('click',function(){show('home');});
+g('nav-home').addEventListener('click',function(){show('home');});
+
+var saved={
+  'pr-home':{lat:51.5237,lng:-0.1585,name:'Home — 14 Baker Street'},
+  'pr-work':{lat:51.5045,lng:-0.0197,name:'Work — Canary Wharf'},
+  'pr-wembley':{lat:51.5560,lng:-0.2795,name:'Wembley Stadium'}
+};
+Object.keys(saved).forEach(function(id){
+  g(id).addEventListener('click',function(){var p=saved[id];selectDest(p.lat,p.lng,p.name);});
+});
+
+g('dest-input').addEventListener('input',function(){
+  g('dest-clear').style.display=this.value?'flex':'none';
+  doSearch(this.value);
+});
+g('dest-clear').addEventListener('click',function(){g('dest-input').value='';g('dest-clear').style.display='none';doSearch('');g('dest-input').focus();});
+g('dest-input').addEventListener('focus',function(){g('dest-wrap').classList.add('focused');});
+g('dest-input').addEventListener('blur',function(){g('dest-wrap').classList.remove('focused');});
+
+var rideMap={'ro-std':'std','ro-xl':'xl','ro-eco':'eco'};
+Object.keys(rideMap).forEach(function(id){
+  g(id).addEventListener('click',function(){
+    document.querySelectorAll('.ride-opt').forEach(function(r){r.classList.remove('sel');});
+    g(id).classList.add('sel'); selRide=rideMap[id]; refreshBookBtn();
+  });
+});
+
+function calcFares(){
+  var mi=parseFloat(g('c-miles').value)||0, mn=parseFloat(g('c-mins').value)||0;
+  var uber=2.50+mi*1.375+mn*0.175+2.00, bolt=2.10+mi*1.225+mn*0.15;
+  var cheap=Math.min(uber,bolt), ryde=cheap*0.80, save=cheap-ryde;
+  g('calc-results').innerHTML=
+    '<div class="cr-row"><span class="cr-brand">Uber X</span><div class="cr-right"><span class="cr-price">'+fmt(uber)+'</span></div></div>'+
+    '<div class="cr-row"><span class="cr-brand">Bolt</span><div class="cr-right"><span class="cr-price">'+fmt(bolt)+'</span></div></div>'+
+    '<div class="cr-row ryde"><span class="cr-brand" style="color:#111;">Ryde ✓</span><div class="cr-right"><span class="cr-price win">'+fmt(ryde)+'</span><span class="cr-badge">Save '+fmt(save)+'</span></div></div>';
+}
+g('cat-compare').addEventListener('click',function(){g('calc-overlay').classList.add('open');calcFares();});
+g('nav-compare').addEventListener('click',function(){g('calc-overlay').classList.add('open');calcFares();});
+g('calc-close').addEventListener('click',function(){g('calc-overlay').classList.remove('open');});
+g('calc-overlay').addEventListener('click',function(e){if(e.target===g('calc-overlay'))g('calc-overlay').classList.remove('open');});
+g('c-miles').addEventListener('input',calcFares);
+g('c-mins').addEventListener('input',calcFares);
+
+})();
+</script>
+</body>
+</html>
