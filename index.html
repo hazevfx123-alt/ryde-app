@@ -375,6 +375,9 @@ body{height:100%;background:#e8ecf1;display:flex;align-items:center;justify-cont
 <script>
 (function(){
 'use strict';
+const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_KEY = 'your_anon_key_here';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 var GEO_KEY='a9601132ff104408ba96b59b76a84dc0';
 function g(id){return document.getElementById(id);}
 var map=null,userMarker=null,destMarker=null,routeLine=null;
