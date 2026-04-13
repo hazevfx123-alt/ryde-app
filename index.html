@@ -113,7 +113,6 @@ body{height:100%;background:#e8ecf1;display:flex;align-items:center;justify-cont
 .pay-row span{font-size:13px;color:var(--text2);}
 .chg{font-size:13px;color:var(--info);margin-left:auto;cursor:pointer;}
 .book-btn{margin:0 16px 14px;width:calc(100% - 32px);padding:16px;background:#2563eb;color:#fff;border:none;border-radius:var(--rl);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;}
-.cfm-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;}
 .spinner{width:64px;height:64px;border-radius:50%;border:3px solid var(--bg2);border-top-color:#2563eb;animation:spin 0.75s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .radar-ring{position:absolute;border-radius:50%;border:2px solid rgba(37,99,235,0.3);animation:radar-expand 2.5s ease-out infinite;}
@@ -147,7 +146,6 @@ body{height:100%;background:#e8ecf1;display:flex;align-items:center;justify-cont
 .sched-input{flex:1;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:12px 14px;font-size:15px;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none;}
 .sched-input:focus{border-color:#2563eb;}
 .sched-confirm{width:100%;padding:15px;background:#2563eb;color:#fff;border:none;border-radius:var(--rl);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
-/* boarding code display on rider side */
 .boarding-display{margin:12px 16px 0;background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--rl);padding:16px;text-align:center;flex-shrink:0;}
 .bd-label{font-size:12px;color:#2563eb;font-weight:600;margin-bottom:6px;}
 .bd-code{font-size:40px;font-weight:900;color:#2563eb;letter-spacing:8px;font-family:monospace;}
@@ -226,7 +224,6 @@ body{height:100%;background:#e8ecf1;display:flex;align-items:center;justify-cont
       <div class="pay-row"><svg width="16" height="16" fill="none" stroke="#aaa" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span>Visa ···· 4242</span><span class="chg">Change</span></div>
       <button class="book-btn" id="book-btn">Book Ryde</button>
     </div>
-    <!-- CONFIRMING: searching for driver -->
     <div id="scr-confirming" class="screen" style="position:relative;overflow:hidden;">
       <div id="cfm-map" style="position:absolute;inset:0;z-index:0;"></div>
       <div style="position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;pointer-events:none;">
@@ -245,7 +242,6 @@ body{height:100%;background:#e8ecf1;display:flex;align-items:center;justify-cont
         </div>
       </div>
     </div>
-    <!-- TRACKING: driver on way, show boarding code -->
     <div id="scr-tracking" class="screen">
       <div style="padding:16px 16px 0;display:flex;align-items:flex-start;gap:12px;flex-shrink:0;">
         <div style="flex:1;">
@@ -270,7 +266,6 @@ body{height:100%;background:#e8ecf1;display:flex;align-items:center;justify-cont
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="font-size:10px;color:var(--text3);">Far</span><span style="font-size:10px;color:var(--text3);">Here</span></div>
       </div>
-      <!-- Boarding code shown to rider -->
       <div class="boarding-display" id="boarding-display">
         <div class="bd-label">Show this code to your driver</div>
         <div class="bd-code" id="rider-boarding-code">—</div>
@@ -336,9 +331,8 @@ function g(id){return document.getElementById(id);}
 var map=null,userMarker=null,destMarker=null,routeLine=null;
 var uLat=51.505,uLng=-0.09,distMi=null,distKm=null,tripMins=null;
 var selRide='std',searchTimer=null,myLocationLabel='Your location';
-var currentRideId=null, rideChannel=null, driverTimer=null;
+var currentRideId=null,rideChannel=null,driverTimer=null;
 var destLat=null,destLng=null,destLabel=null;
-
 function reverseGeocode(lat,lng,cb){
   fetch('https://api.geoapify.com/v1/geocode/reverse?lat='+lat+'&lon='+lng+'&apiKey='+GEO_KEY+'&lang=en&format=json')
     .then(function(r){return r.json();}).then(function(d){
@@ -346,7 +340,6 @@ function reverseGeocode(lat,lng,cb){
       else cb('Your location');
     }).catch(function(){cb('Your location');});
 }
-
 function buildMap(lat,lng){
   uLat=lat;uLng=lng;
   if(map){map.setView([lat,lng],15);if(userMarker)userMarker.setLatLng([lat,lng]);}
@@ -359,16 +352,14 @@ function buildMap(lat,lng){
   }
   reverseGeocode(lat,lng,function(label){myLocationLabel=label;g('pickup-input').value=label;g('pickup-disp').textContent=label;});
 }
-
 function locate(){
   if(!navigator.geolocation){buildMap(uLat,uLng);return;}
   navigator.geolocation.getCurrentPosition(function(p){buildMap(p.coords.latitude,p.coords.longitude);},function(){buildMap(uLat,uLng);g('pickup-input').value='London (default)';},{timeout:10000,maximumAge:60000,enableHighAccuracy:true});
 }
 window.addEventListener('load',locate);
 g('locate-btn').addEventListener('click',function(e){e.preventDefault();locate();});
-
 function drawRoute(lat2,lng2){
-  destLat=lat2; destLng=lng2;
+  destLat=lat2;destLng=lng2;
   if(destMarker)map.removeLayer(destMarker);
   var ph='<div style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;"><div class="dest-dot"></div></div>';
   destMarker=L.marker([lat2,lng2],{icon:L.divIcon({className:'',html:ph,iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:999}).addTo(map);
@@ -411,7 +402,6 @@ function refreshBookBtn(){
   var names={std:'Ryde',xl:'Ryde XL',eco:'Ryde Eco'};
   g('book-btn').textContent='Book '+names[selRide]+(prices[selRide]&&prices[selRide]!=='—'?' · '+prices[selRide]:'');
 }
-
 function doSearch(q){
   var el=g('sresults');
   if(!q||q.length<2){el.innerHTML='<div class="sempty"><svg width="40" height="40" fill="none" stroke="#ccc" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>Search for a destination</p><small>Type an address, place or landmark</small></div>';return;}
@@ -447,8 +437,6 @@ function selectDest(lat,lng,name){
   g('dest-disp').textContent=name;g('pickup-disp').textContent=myLocationLabel;
   drawRoute(lat,lng);show('booking');
 }
-
-// ── BOOK RIDE: write to Supabase, find nearest driver ──
 async function bookRide(){
   if(!distMi){alert('Please search for a destination first.');return;}
   show('confirming');
@@ -456,7 +444,6 @@ async function bookRide(){
   var fareMap={std:parseFloat(g('p-std').textContent.replace('£','')),xl:parseFloat(g('p-xl').textContent.replace('£','')),eco:parseFloat(g('p-eco').textContent.replace('£',''))};
   var fare=fareMap[selRide]||0;
   var code=Math.floor(1000+Math.random()*9000).toString();
-  // Insert ride into database
   var {data:ride,error}=await sb.from('rides').insert({
     pickup_lat:uLat,pickup_lng:uLng,pickup_addr:myLocationLabel,
     dropoff_lat:destLat,dropoff_lng:destLng,dropoff_addr:destLabel||'Destination',
@@ -466,12 +453,9 @@ async function bookRide(){
   if(error){console.error(error);g('cfm-status').textContent='Error — please try again';return;}
   currentRideId=ride.id;
   g('rider-boarding-code').textContent=code;
-  // Find nearest driver within 30 miles
   await offerToNearestDriver(ride.id,[]);
-  // Listen for ride status updates in real time
   listenToRide(ride.id);
 }
-
 async function offerToNearestDriver(rideId,excludeIds){
   var {data:drivers}=await sb.rpc('find_nearest_driver',{
     pickup_lat:uLat,pickup_lng:uLng,
@@ -483,14 +467,13 @@ async function offerToNearestDriver(rideId,excludeIds){
     g('cfm-driver-count').textContent='Try again in a few minutes';
     return;
   }
-  g('cfm-driver-count').textContent=drivers.length+' driver'+(drivers.length>1?'s':'')+' nearby');
+  g('cfm-driver-count').textContent=drivers.length+' driver'+(drivers.length>1?'s':'')+' nearby';
   var nearest=drivers[0];
   var newExcluded=excludeIds.concat([nearest.id]);
   await sb.from('rides').update({
     status:'offered',driver_id:nearest.id,offered_to:newExcluded
   }).eq('id',rideId);
 }
-
 function listenToRide(rideId){
   if(rideChannel)rideChannel.unsubscribe();
   rideChannel=sb.channel('ride-'+rideId)
@@ -498,34 +481,26 @@ function listenToRide(rideId){
     function(payload){handleRideUpdate(payload.new);})
     .subscribe();
 }
-
 async function handleRideUpdate(ride){
   if(ride.status==='declined'){
-    // Offer to next nearest driver
     g('cfm-status').textContent='Finding next driver...';
     await offerToNearestDriver(ride.id,ride.offered_to||[]);
   }
   if(ride.status==='accepted'){
     g('cfm-status').textContent='Driver found!';
-    setTimeout(function(){
-      show('tracking');
-      startDriverApproach();
-    },800);
+    setTimeout(function(){show('tracking');startDriverApproach();},800);
   }
   if(ride.status==='active'){
-    // Driver confirmed boarding — trip started
     g('boarding-display').style.background='#f0fdf4';
     g('boarding-display').style.borderColor='#bbf7d0';
     var label=g('boarding-display').querySelector('.bd-label');
     if(label)label.textContent='✓ Boarding confirmed — enjoy your ride!';
   }
   if(ride.status==='complete'){
-    show('home');
-    currentRideId=null;
+    show('home');currentRideId=null;
     if(rideChannel){rideChannel.unsubscribe();rideChannel=null;}
   }
 }
-
 var cfmMap=null,cfmDrMarker=null;
 function startConfirmingMap(){
   if(!cfmMap){
@@ -533,7 +508,7 @@ function startConfirmingMap(){
     L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=6b1bf88a-7aee-467f-ab09-16e2387c878e',{maxZoom:20}).addTo(cfmMap);
     var dh='<div style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;"><div class="user-dot"></div></div>';
     L.marker([uLat,uLng],{icon:L.divIcon({className:'',html:dh,iconSize:[18,18],iconAnchor:[9,9]})}).addTo(cfmMap);
-  } else {cfmMap.setView([uLat,uLng],14);}
+  } else{cfmMap.setView([uLat,uLng],14);}
   var drvStart=[uLat+0.008,uLng+0.010];
   if(cfmDrMarker)cfmMap.removeLayer(cfmDrMarker);
   var carHtml='<svg width="28" height="18" viewBox="0 0 40 20" fill="none"><rect x="2" y="6" width="32" height="10" rx="3" fill="#2563eb"/><rect x="7" y="2" width="22" height="8" rx="2" fill="#2563eb" opacity="0.7"/><circle cx="9" cy="16" r="3" fill="#111"/><circle cx="27" cy="16" r="3" fill="#111"/></svg>';
@@ -542,7 +517,6 @@ function startConfirmingMap(){
   var steps=20,step=0;
   var iv=setInterval(function(){step++;var t=step/steps;cfmDrMarker.setLatLng([drvStart[0]+(uLat-drvStart[0])*t,drvStart[1]+(uLng-drvStart[1])*t]);if(step>=steps)clearInterval(iv);},175);
 }
-
 function startDriverApproach(){
   clearInterval(driverTimer);
   var distSteps=['0.8 mi away','0.6 mi away','0.4 mi away','0.2 mi away','Arriving now!'];
@@ -552,7 +526,6 @@ function startDriverApproach(){
   function update(){if(step>=distSteps.length)return;lbl.textContent=distSteps[step];bar.className=barSteps[step];eta.textContent=etaSteps[step]||'<1';step++;}
   update();driverTimer=setInterval(update,2500);
 }
-
 function show(n){
   ['home','search','booking','confirming','tracking','rides'].forEach(function(s){var e=g('scr-'+s);if(e)e.classList.remove('active');});
   var t=g('scr-'+n);if(t)t.classList.add('active');
@@ -563,7 +536,6 @@ function openSearch(){
   g('dest-input').value='';g('dest-clear').style.display='none';
   show('search');setTimeout(function(){g('dest-input').focus();},120);
 }
-
 var sheet=g('sheet'),phone=document.querySelector('.phone');
 var isDragging=false,startY=0,startTop=0,SNAP_OPEN=60,SNAP_CLOSED=0;
 function initSheet(){var ph=phone.getBoundingClientRect().height;SNAP_CLOSED=Math.round(ph*0.50);sheet.style.top=SNAP_CLOSED+'px';}
@@ -573,7 +545,6 @@ var handle=g('handle');
 handle.addEventListener('touchstart',function(e){isDragging=true;startY=e.touches[0].clientY;startTop=parseInt(sheet.style.top)||SNAP_CLOSED;sheet.style.transition='none';},{passive:true});
 handle.addEventListener('touchmove',function(e){if(!isDragging)return;sheet.style.top=Math.max(SNAP_OPEN,Math.min(SNAP_CLOSED,startTop+(e.touches[0].clientY-startY)))+'px';},{passive:true});
 handle.addEventListener('touchend',function(){isDragging=false;sheet.style.transition='top 0.35s cubic-bezier(0.4,0,0.2,1)';var cur=parseInt(sheet.style.top)||SNAP_CLOSED;sheet.style.top=(cur<(SNAP_OPEN+SNAP_CLOSED)/2?SNAP_OPEN:SNAP_CLOSED)+'px';});
-
 var schedOverlay=g('sched-overlay');
 function setDefaultSchedule(){var d=new Date();d.setHours(d.getHours()+1);g('sched-date').value=d.toISOString().split('T')[0];g('sched-time').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 g('schedule-pill').addEventListener('click',function(e){e.stopPropagation();if(g('schedule-label').textContent==='Now'){setDefaultSchedule();schedOverlay.classList.add('open');}else{g('schedule-label').textContent='Now';}});
