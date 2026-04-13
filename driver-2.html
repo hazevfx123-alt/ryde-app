@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ryde Driver</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#fff;--bg2:#f4f6f9;--bg3:#e8ecf1;
+  --border:rgba(0,0,0,0.09);--text:#111;--text2:#555;--text3:#999;
+  --blue:#2563eb;--green:#16a34a;--green-bg:#f0fdf4;--green-border:rgba(22,163,74,0.25);
+  --amber:#d97706;--amber-bg:#fffbeb;--amber-border:rgba(217,119,6,0.25);
+  --red:#dc2626;--red-bg:#fef2f2;--red-border:rgba(220,38,38,0.25);
+  --r:10px;--rl:16px;--rxl:22px;
+}
+html{height:100%;-webkit-text-size-adjust:100%;}
+body{height:100%;background:#e8ecf1;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
+.phone{width:100%;max-width:430px;height:100vh;max-height:900px;background:var(--bg);border-radius:var(--rxl);overflow:hidden;position:relative;box-shadow:0 4px 24px rgba(0,0,0,0.12);}
+#dmap{position:absolute;inset:0;z-index:1;}
+.leaflet-control-attribution{display:none!important;}
+.leaflet-control-zoom{display:none!important;}
+.top-bar{position:absolute;top:0;left:0;right:0;z-index:800;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(to bottom,rgba(255,255,255,0.92) 70%,transparent);}
+.logo{font-size:22px;font-weight:800;color:#111;letter-spacing:-1px;}
+.logo b{color:var(--blue);}
+.logo small{font-size:11px;font-weight:600;color:var(--text2);margin-left:4px;letter-spacing:0.05em;vertical-align:middle;}
+.online-pill{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;border:none;font-family:inherit;}
+.online-pill.offline{background:var(--bg2);color:var(--text2);border:0.5px solid var(--border);}
+.online-pill.online{background:var(--green-bg);color:var(--green);border:0.5px solid var(--green-border);}
+.pill-dot{width:7px;height:7px;border-radius:50%;}
+.offline .pill-dot{background:var(--text3);}
+.online .pill-dot{background:var(--green);animation:pulse-dot 1.5s ease-in-out infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.sim-toggle{position:absolute;top:70px;right:16px;z-index:850;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.9);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.sim-panel{position:absolute;top:70px;left:16px;z-index:850;background:#fff;border:0.5px solid var(--border);border-radius:var(--rl);padding:12px 14px;min-width:200px;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.12);}
+.sim-panel.show{display:block;}
+.sim-title{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;}
+.sim-btn{width:100%;padding:9px 12px;margin-bottom:6px;background:var(--bg2);color:var(--text);border:0.5px solid var(--border);border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;}
+.sim-btn:last-child{margin-bottom:0;}
+.d-sheet{position:absolute;left:0;right:0;bottom:0;z-index:20;background:#fff;border-radius:var(--rxl) var(--rxl) 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.08);}
+.d-handle{display:flex;justify-content:center;padding:10px 0 0;}
+.d-hbar{width:38px;height:4px;border-radius:2px;background:var(--bg3);}
+.offline-body{padding:20px 20px 32px;text-align:center;}
+.offline-icon{width:64px;height:64px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.offline-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.offline-sub{font-size:14px;color:var(--text2);margin-bottom:24px;line-height:1.5;}
+.go-online-btn{width:100%;padding:16px;background:var(--green);color:#fff;border:none;border-radius:var(--rl);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;}
+.idle-body{padding:16px 20px 28px;}
+.earnings-row{display:flex;gap:8px;margin-bottom:14px;}
+.earn-card{flex:1;background:var(--bg2);border-radius:var(--r);padding:11px 12px;border:0.5px solid var(--border);text-align:center;}
+.earn-v{font-size:18px;font-weight:800;color:var(--text);}
+.earn-l{font-size:11px;color:var(--text2);margin-top:2px;}
+.status-bar{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:var(--r);margin-bottom:14px;}
+.status-pulse{width:9px;height:9px;border-radius:50%;background:var(--green);flex-shrink:0;animation:pulse-dot 1.5s ease-in-out infinite;}
+.status-txt{font-size:13px;color:var(--green);font-weight:600;flex:1;}
+.go-offline-btn{font-size:12px;color:var(--text2);background:none;border:0.5px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;font-family:inherit;}
+.request-overlay{position:absolute;inset:0;z-index:900;background:rgba(0,0,0,0.35);display:none;align-items:flex-end;}
+.request-overlay.show{display:flex;}
+.request-sheet{width:100%;background:#fff;border-radius:var(--rxl) var(--rxl) 0 0;animation:slide-up 0.3s cubic-bezier(0.4,0,0.2,1);}
+@keyframes slide-up{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.req-timer-bar{height:4px;background:var(--blue);border-radius:2px 2px 0 0;animation:req-timer 30s linear forwards;}
+@keyframes req-timer{from{width:100%;}to{width:0%;}}
+.req-head{padding:16px 20px 12px;border-bottom:0.5px solid var(--border);}
+.req-tag{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;}
+.req-title{font-size:21px;font-weight:800;color:var(--text);}
+.req-body{padding:14px 20px 0;}
+.req-route{display:flex;gap:12px;margin-bottom:12px;}
+.req-line{display:flex;flex-direction:column;align-items:center;padding:4px 0;}
+.req-dot-g{width:9px;height:9px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.req-dot-b{width:9px;height:9px;border-radius:2px;background:var(--blue);flex-shrink:0;}
+.req-vline{width:1.5px;flex:1;background:var(--border);margin:3px 0;}
+.req-locs{flex:1;display:flex;flex-direction:column;gap:6px;}
+.req-loc{background:var(--bg2);border-radius:var(--r);padding:9px 12px;border:0.5px solid var(--border);}
+.req-loc-l{font-size:10px;color:var(--text3);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.04em;}
+.req-loc-v{font-size:13px;font-weight:600;color:var(--text);}
+.req-stats{display:flex;gap:8px;margin-bottom:16px;}
+.req-stat{flex:1;background:var(--bg2);border-radius:var(--r);padding:9px 10px;border:0.5px solid var(--border);text-align:center;}
+.req-stat-v{font-size:17px;font-weight:800;color:var(--text);}
+.req-stat-v.earn{color:var(--green);}
+.req-stat-l{font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase;}
+.req-btns{display:flex;gap:10px;padding:0 20px 24px;}
+.decline-btn{flex:1;padding:15px;background:transparent;color:var(--red);border:0.5px solid var(--red-border);border-radius:var(--rl);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.accept-btn{flex:2;padding:15px;background:var(--green);color:#fff;border:none;border-radius:var(--rl);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.active-body{padding:14px 20px 24px;}
+.phase-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r);margin-bottom:12px;}
+.phase-card.pickup{background:var(--amber-bg);border:0.5px solid var(--amber-border);}
+.phase-card.dropoff{background:#eff6ff;border:0.5px solid rgba(37,99,235,0.2);}
+.phase-card.boarding{background:var(--green-bg);border:0.5px solid var(--green-border);}
+.phase-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pickup .phase-icon{background:rgba(217,119,6,0.12);}
+.dropoff .phase-icon{background:rgba(37,99,235,0.1);}
+.boarding .phase-icon{background:rgba(22,163,74,0.1);}
+.phase-title{font-size:14px;font-weight:700;color:var(--text);}
+.phase-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.rider-card{background:var(--bg2);border-radius:var(--rl);padding:13px 14px;border:0.5px solid var(--border);display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.rider-av{width:42px;height:42px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.rider-nm{font-size:14px;font-weight:700;color:var(--text);}
+.rider-rt{font-size:12px;color:var(--text2);margin-top:2px;}
+.rider-btns{display:flex;gap:8px;margin-left:auto;}
+.ride-icon-btn{width:38px;height:38px;border-radius:50%;background:#fff;border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.dist-tracker{background:var(--bg2);border-radius:var(--r);padding:12px 14px;border:0.5px solid var(--border);margin-bottom:12px;}
+.dt-row{display:flex;justify-content:space-between;margin-bottom:6px;}
+.dt-lbl{font-size:12px;color:var(--text2);}
+.dt-val{font-size:12px;font-weight:700;color:var(--blue);}
+.dt-bar-track{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.dt-bar-fill{height:100%;background:var(--blue);border-radius:3px;transition:width 1.5s ease;}
+.nav-btn-d{width:100%;padding:12px;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--bg2);color:var(--text);border:0.5px solid var(--border);margin-bottom:10px;}
+.main-action-btn{width:100%;padding:15px;border:none;border-radius:var(--rl);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn-amber{background:var(--amber);color:#fff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-blue{background:var(--blue);color:#fff;}
+.boarding-overlay{position:absolute;inset:0;z-index:950;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;padding:24px;}
+.boarding-overlay.show{display:flex;}
+.boarding-card{background:#fff;border-radius:var(--rxl);padding:28px 24px;width:100%;text-align:center;}
+.boarding-icon{width:72px;height:72px;border-radius:50%;background:var(--green-bg);border:1.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.boarding-title{font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.boarding-sub{font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.5;}
+.boarding-code{font-size:40px;font-weight:900;color:var(--blue);letter-spacing:8px;margin-bottom:20px;font-family:monospace;}
+.boarding-confirm-btn{width:100%;padding:16px;background:var(--green);color:#fff;border:none;border-radius:var(--rl);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;}
+.boarding-cancel-btn{width:100%;padding:13px;background:transparent;color:var(--text2);border:0.5px solid var(--border);border-radius:var(--rl);font-size:14px;cursor:pointer;font-family:inherit;}
+.complete-body{padding:24px 20px 32px;text-align:center;}
+.complete-icon{width:72px;height:72px;border-radius:50%;background:var(--green-bg);border:1.5px solid var(--green-border);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.complete-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.complete-earn{font-size:40px;font-weight:900;color:var(--green);margin-bottom:4px;}
+.complete-sub{font-size:13px;color:var(--text2);margin-bottom:24px;}
+.done-btn{width:100%;padding:15px;background:var(--blue);color:#fff;border:none;border-radius:var(--rl);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.driver-dot{width:16px;height:16px;background:var(--green);border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(22,163,74,0.2);}
+.pickup-dot{width:14px;height:14px;background:var(--amber);border:3px solid #fff;border-radius:50%;}
+.dropoff-dot{width:14px;height:14px;background:var(--blue);border:3px solid #fff;border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div id="dmap"></div>
+  <div class="top-bar">
+    <div class="logo">Ry<b>d</b>e <small>DRIVER</small></div>
+    <button class="online-pill offline" id="toggle-online"><div class="pill-dot"></div><span id="online-label">Go Online</span></button>
+  </div>
+  <button class="sim-toggle" id="sim-toggle"><svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+  <div class="sim-panel" id="sim-panel">
+    <div class="sim-title">⚡ Dev Tools</div>
+    <button class="sim-btn" id="sim-request">📦 Simulate ride request</button>
+    <button class="sim-btn" id="sim-arrived">📍 Arrived at pickup</button>
+    <button class="sim-btn" id="sim-boarded">✅ Passenger boarded</button>
+    <button class="sim-btn" id="sim-complete">🏁 Complete trip</button>
+  </div>
+  <div class="d-sheet" id="d-sheet">
+    <div class="d-handle"><div class="d-hbar"></div></div>
+    <div id="state-offline" class="offline-body">
+      <div class="offline-icon"><svg width="28" height="28" fill="none" stroke="#999" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="10" rx="3"/><path d="M5 8V6a2 2 0 012-2h10a2 2 0 012 2v2"/><circle cx="7.5" cy="13" r="1.5"/><circle cx="16.5" cy="13" r="1.5"/></svg></div>
+      <div class="offline-title">You're offline</div>
+      <div class="offline-sub">Go online to start receiving ride requests from riders near you</div>
+      <button class="go-online-btn" id="go-online-btn">Go Online</button>
+    </div>
+    <div id="state-idle" class="idle-body" style="display:none;">
+      <div class="earnings-row">
+        <div class="earn-card"><div class="earn-v" id="earn-today">£0.00</div><div class="earn-l">Today</div></div>
+        <div class="earn-card"><div class="earn-v" id="trips-today">0</div><div class="earn-l">Trips</div></div>
+        <div class="earn-card"><div class="earn-v" id="hours-online">0m</div><div class="earn-l">Online</div></div>
+      </div>
+      <div class="status-bar">
+        <div class="status-pulse"></div>
+        <div class="status-txt" id="idle-status">Looking for riders nearby...</div>
+        <button class="go-offline-btn" id="go-offline-btn">Go offline</button>
+      </div>
+    </div>
+    <div id="state-active" class="active-body" style="display:none;">
+      <div id="phase-to-pickup">
+        <div class="phase-card pickup"><div class="phase-icon"><svg width="16" height="16" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="phase-title">Head to pickup</div><div class="phase-sub" id="active-pickup-addr">—</div></div></div>
+        <div class="rider-card"><div class="rider-av">👤</div><div style="flex:1;"><div class="rider-nm" id="rider-name-1">—</div><div class="rider-rt">⭐ <span id="rider-rating-1">—</span></div></div><div class="rider-btns"><div class="ride-icon-btn"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.64A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div></div></div>
+        <button class="nav-btn-d" id="nav-pickup-btn"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>Navigate to pickup</button>
+        <button class="main-action-btn btn-amber" id="arrived-btn">Arrived at pickup</button>
+      </div>
+      <div id="phase-boarding" style="display:none;">
+        <div class="phase-card boarding"><div class="phase-icon"><svg width="16" height="16" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="phase-title">Waiting for passenger</div><div class="phase-sub">Ask them to show their code</div></div></div>
+        <div class="rider-card"><div class="rider-av">👤</div><div style="flex:1;"><div class="rider-nm" id="rider-name-2">—</div><div class="rider-rt">⭐ <span id="rider-rating-2">—</span></div></div><div class="rider-btns"><div class="ride-icon-btn"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.64A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div></div></div>
+        <button class="main-action-btn btn-green" id="confirm-boarding-btn">Confirm passenger boarded</button>
+      </div>
+      <div id="phase-to-dropoff" style="display:none;">
+        <div class="phase-card dropoff"><div class="phase-icon"><svg width="16" height="16" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg></div><div><div class="phase-title">En route to dropoff</div><div class="phase-sub" id="active-dropoff-addr">—</div></div></div>
+        <div class="dist-tracker"><div class="dt-row"><span class="dt-lbl">Remaining distance</span><span class="dt-val" id="dt-dist-lbl">Calculating...</span></div><div class="dt-bar-track"><div class="dt-bar-fill" id="dt-bar" style="width:100%;"></div></div><div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="font-size:10px;color:var(--text3);">Start</span><span style="font-size:10px;color:var(--text3);">Destination</span></div></div>
+        <div class="rider-card"><div class="rider-av">👤</div><div style="flex:1;"><div class="rider-nm" id="rider-name-3">—</div><div class="rider-rt">⭐ <span id="rider-rating-3">—</span></div></div><div class="rider-btns"><div class="ride-icon-btn"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.64A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div></div></div>
+        <button class="nav-btn-d" id="nav-dropoff-btn"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>Navigate to dropoff</button>
+        <button class="main-action-btn btn-blue" id="complete-btn">Complete trip · <span id="complete-earn-lbl">£0</span></button>
+      </div>
+    </div>
+    <div id="state-complete" class="complete-body" style="display:none;">
+      <div class="complete-icon"><svg width="32" height="32" fill="none" stroke="#16a34a" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="complete-title">Trip complete!</div>
+      <div class="complete-earn" id="final-earn">£0.00</div>
+      <div class="complete-sub" id="complete-sub">Great job!</div>
+      <button class="done-btn" id="done-btn">Back to driving</button>
+    </div>
+  </div>
+  <div class="request-overlay" id="request-overlay">
+    <div class="request-sheet">
+      <div class="req-timer-bar" id="req-timer-bar"></div>
+      <div class="req-head"><div class="req-tag">New ride · <span id="req-dist-away">0.4 mi away</span></div><div class="req-title" id="req-earn-title">£0.00 · 0 min</div></div>
+      <div class="req-body">
+        <div class="req-route"><div class="req-line"><div class="req-dot-g"></div><div class="req-vline"></div><div class="req-dot-b"></div></div><div class="req-locs"><div class="req-loc"><div class="req-loc-l">Pickup</div><div class="req-loc-v" id="req-pickup">—</div></div><div class="req-loc"><div class="req-loc-l">Dropoff</div><div class="req-loc-v" id="req-dropoff">—</div></div></div></div>
+        <div class="req-stats"><div class="req-stat"><div class="req-stat-v" id="req-mi">—</div><div class="req-stat-l">Miles</div></div><div class="req-stat"><div class="req-stat-v" id="req-time">—</div><div class="req-stat-l">Est. time</div></div><div class="req-stat"><div class="req-stat-v earn" id="req-earn">—</div><div class="req-stat-l">Earnings</div></div></div>
+      </div>
+      <div class="req-btns"><button class="decline-btn" id="decline-btn">Decline</button><button class="accept-btn" id="accept-btn">Accept ride</button></div>
+    </div>
+  </div>
+  <div class="boarding-overlay" id="boarding-overlay">
+    <div class="boarding-card">
+      <div class="boarding-icon"><svg width="30" height="30" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+      <div class="boarding-title">Confirm passenger</div>
+      <div class="boarding-sub">Check the code matches what's on the rider's phone</div>
+      <div class="boarding-code" id="boarding-code">—</div>
+      <button class="boarding-confirm-btn" id="boarding-confirm-btn">✓ Passenger is in the car</button>
+      <button class="boarding-cancel-btn" id="boarding-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+'use strict';
+const SUPABASE_URL = 'https://wonbwhabpchzlowkvlmq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvbmJ3aGFicGNoemxvd2t2bG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwODk2MTIsImV4cCI6MjA5MTY2NTYxMn0.-2VQ5Z74AdvRVB-B5c3k_I6GfTnYnM2jFRo2PthVAg0';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+function g(id){return document.getElementById(id);}
+
+// Generate or load a persistent driver ID
+var DRIVER_ID = localStorage.getItem('ryde_driver_id');
+if(!DRIVER_ID){DRIVER_ID=crypto.randomUUID?crypto.randomUUID():'drv-'+Math.random().toString(36).slice(2);localStorage.setItem('ryde_driver_id',DRIVER_ID);}
+
+var state='offline';
+var isOnline=false,onlineStart=null,hoursTimer=null,locationInterval=null;
+var earningsToday=0,tripsToday=0;
+var currentRide=null;
+var driverLat=51.505,driverLng=-0.09;
+var reqTimeout=null,rideChannel=null;
+var map=null,driverMarker=null,pickupMarker=null,dropoffMarker=null,routeLine=null;
+var distTrackInterval=null;
+
+function initMap(){
+  map=L.map('dmap',{zoomControl:false,attributionControl:false,dragging:true,touchZoom:true,scrollWheelZoom:true,tap:true}).setView([driverLat,driverLng],14);
+  L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=6b1bf88a-7aee-467f-ab09-16e2387c878e',{maxZoom:20}).addTo(map);
+  var dh='<div style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;"><div class="driver-dot"></div></div>';
+  driverMarker=L.marker([driverLat,driverLng],{icon:L.divIcon({className:'',html:dh,iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:1000}).addTo(map);
+  if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){driverLat=p.coords.latitude;driverLng=p.coords.longitude;map.setView([driverLat,driverLng],14);driverMarker.setLatLng([driverLat,driverLng]);},null,{timeout:8000,enableHighAccuracy:true});}
+}
+
+function showState(s){
+  state=s;
+  ['offline','idle','active','complete'].forEach(function(n){g('state-'+n).style.display='none';});
+  if(s==='offline')g('state-offline').style.display='block';
+  if(s==='idle')g('state-idle').style.display='block';
+  if(s==='active-pickup'||s==='active-boarding'||s==='active-dropoff')showActivePhase(s);
+  if(s==='complete')g('state-complete').style.display='block';
+}
+function showActivePhase(s){
+  g('state-active').style.display='block';
+  g('phase-to-pickup').style.display='none';
+  g('phase-boarding').style.display='none';
+  g('phase-to-dropoff').style.display='none';
+  if(s==='active-pickup')g('phase-to-pickup').style.display='block';
+  if(s==='active-boarding')g('phase-boarding').style.display='block';
+  if(s==='active-dropoff')g('phase-to-dropoff').style.display='block';
+}
+
+// ── GO ONLINE: register in Supabase + listen for ride offers ──
+async function goOnline(){
+  isOnline=true;onlineStart=Date.now();
+  g('toggle-online').className='online-pill online';
+  g('online-label').textContent='Online';
+  showState('idle');
+  // Upsert driver into database
+  await sb.from('drivers').upsert({
+    id:DRIVER_ID,name:'Driver',lat:driverLat,lng:driverLng,online:true,available:true,updated_at:new Date().toISOString()
+  });
+  // Ping location every 10 seconds
+  clearInterval(locationInterval);
+  locationInterval=setInterval(async function(){
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(function(p){
+        driverLat=p.coords.latitude;driverLng=p.coords.longitude;
+        driverMarker.setLatLng([driverLat,driverLng]);
+        sb.from('drivers').update({lat:driverLat,lng:driverLng,updated_at:new Date().toISOString()}).eq('id',DRIVER_ID);
+      });
+    }
+  },10000);
+  // Listen for ride offers via Realtime
+  listenForRides();
+  // Hours counter
+  clearInterval(hoursTimer);
+  hoursTimer=setInterval(function(){var mins=Math.floor((Date.now()-onlineStart)/60000);var h=Math.floor(mins/60),m=mins%60;g('hours-online').textContent=h>0?h+'h '+m+'m':m+'m';},15000);
+}
+
+async function goOffline(){
+  isOnline=false;clearInterval(hoursTimer);clearInterval(locationInterval);
+  g('toggle-online').className='online-pill offline';
+  g('online-label').textContent='Go Online';
+  await sb.from('drivers').update({online:false,available:false}).eq('id',DRIVER_ID);
+  if(rideChannel){rideChannel.unsubscribe();rideChannel=null;}
+  showState('offline');
+}
+
+// ── LISTEN FOR RIDE OFFERS ──
+function listenForRides(){
+  if(rideChannel)rideChannel.unsubscribe();
+  rideChannel=sb.channel('driver-offers-'+DRIVER_ID)
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'rides',filter:'driver_id=eq.'+DRIVER_ID},
+    function(payload){
+      var ride=payload.new;
+      if(ride.status==='offered'&&state==='idle'){showRideRequest(ride);}
+      if(ride.status==='cancelled'){declineRide();g('idle-status').textContent='Ride was cancelled by rider';}
+    }).subscribe();
+}
+
+function showRideRequest(ride){
+  currentRide=ride;
+  var dDist=getDriverDistMi(ride.pickup_lat,ride.pickup_lng);
+  var fare=ride.fare||0;
+  g('req-dist-away').textContent=dDist+' mi away';
+  g('req-earn-title').textContent='£'+fare.toFixed(2)+' · '+ride.duration_mins+' min trip';
+  g('req-pickup').textContent=ride.pickup_addr||'Pickup location';
+  g('req-dropoff').textContent=ride.dropoff_addr||'Dropoff location';
+  g('req-mi').textContent=(ride.distance_mi||0).toFixed(1)+' mi';
+  g('req-time').textContent=(ride.duration_mins||0)+' min';
+  g('req-earn').textContent='£'+fare.toFixed(2);
+  var bar=g('req-timer-bar');bar.style.animation='none';bar.offsetHeight;bar.style.animation='req-timer 30s linear forwards';
+  g('request-overlay').classList.add('show');
+  clearMapMarkers();
+  addPickupMarker(ride.pickup_lat,ride.pickup_lng);
+  addDropoffMarker(ride.dropoff_lat,ride.dropoff_lng);
+  drawDashed([driverLat,driverLng],[ride.pickup_lat,ride.pickup_lng],'rgba(217,119,6,0.5)');
+  map.fitBounds(L.latLngBounds([[driverLat,driverLng],[ride.pickup_lat,ride.pickup_lng],[ride.dropoff_lat,ride.dropoff_lng]]),{padding:[60,60]});
+  clearTimeout(reqTimeout);reqTimeout=setTimeout(declineRide,30000);
+}
+
+async function acceptRide(){
+  clearTimeout(reqTimeout);
+  g('request-overlay').classList.remove('show');
+  var r=currentRide;
+  // Update ride status to accepted
+  await sb.from('rides').update({status:'accepted'}).eq('id',r.id);
+  await sb.from('drivers').update({available:false}).eq('id',DRIVER_ID);
+  // Fill UI
+  g('active-pickup-addr').textContent=r.pickup_addr||'Pickup';
+  g('active-dropoff-addr').textContent=r.dropoff_addr||'Dropoff';
+  ['1','2','3'].forEach(function(n){g('rider-name-'+n).textContent='Rider';g('rider-rating-'+n).textContent='—';});
+  g('complete-earn-lbl').textContent='£'+(r.fare||0).toFixed(2);
+  g('boarding-code').textContent=r.boarding_code||'—';
+  showState('active-pickup');
+  clearMapMarkers();
+  addPickupMarker(r.pickup_lat,r.pickup_lng);
+  drawDashed([driverLat,driverLng],[r.pickup_lat,r.pickup_lng],'rgba(217,119,6,0.6)');
+  map.fitBounds(L.latLngBounds([[driverLat,driverLng],[r.pickup_lat,r.pickup_lng]]),{padding:[60,80]});
+}
+
+async function declineRide(){
+  clearTimeout(reqTimeout);
+  g('request-overlay').classList.remove('show');
+  if(currentRide){
+    // Update ride status to declined so rider app tries next driver
+    await sb.from('rides').update({status:'declined'}).eq('id',currentRide.id);
+  }
+  currentRide=null;
+  clearMapMarkers();
+  map.setView([driverLat,driverLng],14);
+}
+
+function arrivedAtPickup(){
+  showState('active-boarding');
+  g('boarding-overlay').classList.add('show');
+}
+
+async function confirmBoarding(){
+  g('boarding-overlay').classList.remove('show');
+  // Update ride to active — this triggers the rider's app
+  await sb.from('rides').update({status:'active'}).eq('id',currentRide.id);
+  var r=currentRide;
+  showState('active-dropoff');
+  clearMapMarkers();
+  addDropoffMarker(r.dropoff_lat,r.dropoff_lng);
+  drawDashed([r.pickup_lat,r.pickup_lng],[r.dropoff_lat,r.dropoff_lng],'rgba(37,99,235,0.6)');
+  map.fitBounds(L.latLngBounds([[r.pickup_lat,r.pickup_lng],[r.dropoff_lat,r.dropoff_lng]]),{padding:[60,80]});
+  startDistTracker(r.distance_mi||5,r.duration_mins||15);
+}
+
+function startDistTracker(totalMi,totalMins){
+  clearInterval(distTrackInterval);
+  var elapsed=0,totalSecs=totalMins*60;
+  g('dt-dist-lbl').textContent=totalMi.toFixed(1)+' mi remaining';
+  g('dt-bar').style.width='100%';
+  distTrackInterval=setInterval(function(){
+    elapsed+=5;var progress=Math.min(elapsed/totalSecs,1);
+    g('dt-dist-lbl').textContent=progress>=1?'Arriving now!':(totalMi*(1-progress)).toFixed(1)+' mi remaining';
+    g('dt-bar').style.width=((1-progress)*100)+'%';
+    if(progress>=1)clearInterval(distTrackInterval);
+  },5000);
+}
+
+async function completeTrip(){
+  clearInterval(distTrackInterval);
+  var r=currentRide;
+  // Mark ride complete in database
+  await sb.from('rides').update({status:'complete'}).eq('id',r.id);
+  await sb.from('drivers').update({available:true}).eq('id',DRIVER_ID);
+  earningsToday+=(r.fare||0);tripsToday++;
+  g('earn-today').textContent='£'+earningsToday.toFixed(2);
+  g('trips-today').textContent=tripsToday;
+  g('final-earn').textContent='£'+(r.fare||0).toFixed(2);
+  g('complete-sub').textContent='Trip complete · '+(r.distance_mi||0).toFixed(1)+' mi · '+(r.duration_mins||0)+' min';
+  clearMapMarkers();map.setView([driverLat,driverLng],14);
+  showState('complete');currentRide=null;
+}
+
+// MAP HELPERS
+function getDriverDistMi(pLat,pLng){var dl=(pLat-driverLat)*69;var dg=(pLng-driverLng)*52;return Math.sqrt(dl*dl+dg*dg).toFixed(1);}
+function clearMapMarkers(){if(pickupMarker){map.removeLayer(pickupMarker);pickupMarker=null;}if(dropoffMarker){map.removeLayer(dropoffMarker);dropoffMarker=null;}if(routeLine){map.removeLayer(routeLine);routeLine=null;}}
+function addPickupMarker(lat,lng){var h='<div style="width:14px;height:14px;display:flex;align-items:center;justify-content:center;"><div class="pickup-dot"></div></div>';pickupMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:h,iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);}
+function addDropoffMarker(lat,lng){var h='<div style="width:14px;height:14px;display:flex;align-items:center;justify-content:center;"><div class="dropoff-dot"></div></div>';dropoffMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:h,iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);}
+function drawDashed(a,b,color){if(routeLine)map.removeLayer(routeLine);routeLine=L.polyline([a,b],{color:color,weight:4,opacity:0.9,dashArray:'8,8'}).addTo(map);}
+
+// FALLBACK SIM (for dev when no real riders are booking)
+var ridePool=[
+  {pickup_addr:'Baker Street, NW1',pickup_lat:51.5226,pickup_lng:-0.1571,dropoff_addr:'Wembley Stadium, HA9',dropoff_lat:51.5560,dropoff_lng:-0.2795,fare:9.20,distance_mi:7.2,duration_mins:22,boarding_code:'7382'},
+  {pickup_addr:"King's Cross, N1",pickup_lat:51.5308,pickup_lng:-0.1238,dropoff_addr:'Canary Wharf, E14',dropoff_lat:51.5051,dropoff_lng:-0.0235,fare:7.80,distance_mi:5.4,duration_mins:18,boarding_code:'4491'},
+];
+function simulateRequest(){
+  if(!isOnline||state!=='idle')return;
+  var r=Object.assign({},ridePool[Math.floor(Math.random()*ridePool.length)],{id:'sim-'+Date.now(),status:'offered'});
+  showRideRequest(r);
+}
+
+// EVENTS
+g('go-online-btn').addEventListener('click',goOnline);
+g('go-offline-btn').addEventListener('click',goOffline);
+g('toggle-online').addEventListener('click',function(){isOnline?goOffline():goOnline();});
+g('accept-btn').addEventListener('click',acceptRide);
+g('decline-btn').addEventListener('click',declineRide);
+g('arrived-btn').addEventListener('click',arrivedAtPickup);
+g('confirm-boarding-btn').addEventListener('click',confirmBoarding);
+g('boarding-cancel-btn').addEventListener('click',function(){g('boarding-overlay').classList.remove('show');});
+g('complete-btn').addEventListener('click',completeTrip);
+g('done-btn').addEventListener('click',function(){showState('idle');listenForRides();});
+g('sim-toggle').addEventListener('click',function(){g('sim-panel').classList.toggle('show');});
+g('sim-request').addEventListener('click',function(){if(!isOnline)goOnline();g('sim-panel').classList.remove('show');setTimeout(simulateRequest,200);});
+g('sim-arrived').addEventListener('click',function(){g('sim-panel').classList.remove('show');if(state==='active-pickup')arrivedAtPickup();});
+g('sim-boarded').addEventListener('click',function(){g('sim-panel').classList.remove('show');if(state==='active-boarding')confirmBoarding();});
+g('sim-complete').addEventListener('click',function(){g('sim-panel').classList.remove('show');if(state==='active-dropoff')completeTrip();});
+g('nav-pickup-btn').addEventListener('click',function(){if(!currentRide)return;window.open('https://maps.google.com/?daddr='+currentRide.pickup_lat+','+currentRide.pickup_lng,'_blank');});
+g('nav-dropoff-btn').addEventListener('click',function(){if(!currentRide)return;window.open('https://maps.google.com/?daddr='+currentRide.dropoff_lat+','+currentRide.dropoff_lng,'_blank');});
+window.addEventListener('load',initMap);
+})();
+</script>
+</body>
+</html>
